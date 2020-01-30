@@ -15,13 +15,16 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
-import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClient;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClientFactory;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.ApiVersion;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.AuthenticationResponse;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectsResponse;
+import com.github.jcustenborder.kafka.connect.salesforce.common.salesforce.connector.ReplayExtension;
+import com.github.jcustenborder.kafka.connect.salesforce.common.SObjectHelper;
+import com.github.jcustenborder.kafka.connect.salesforce.common.TopicChannelMessageListener;
+import com.github.jcustenborder.kafka.connect.salesforce.push.SalesforceRestClient;
+import com.github.jcustenborder.kafka.connect.salesforce.push.SalesforceRestClientFactory;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.ApiVersion;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.AuthenticationResponse;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectDescriptor;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectMetadata;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectsResponse;
 import com.github.jcustenborder.kafka.connect.utils.VersionUtil;
 import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordConcurrentLinkedDeque;
 import com.google.api.client.http.GenericUrl;
@@ -52,6 +55,7 @@ import java.util.concurrent.ConcurrentMap;
 
 public class SalesforceSourceTask extends SourceTask {
   static final Logger log = LoggerFactory.getLogger(SalesforceSourceTask.class);
+
   final SourceRecordConcurrentLinkedDeque messageQueue = new SourceRecordConcurrentLinkedDeque();
   SalesforceSourceConnectorConfig config;
   SalesforceRestClient salesforceRestClient;

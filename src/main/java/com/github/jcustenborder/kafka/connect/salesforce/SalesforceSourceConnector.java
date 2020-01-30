@@ -15,17 +15,18 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
+import com.github.jcustenborder.kafka.connect.salesforce.common.SObjectHelper;
 import com.github.jcustenborder.kafka.connect.utils.VersionUtil;
 import com.github.jcustenborder.kafka.connect.utils.config.Description;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClient;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClientFactory;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.ApiVersion;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.PushTopic;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectsResponse;
+import com.github.jcustenborder.kafka.connect.salesforce.push.SalesforceRestClient;
+import com.github.jcustenborder.kafka.connect.salesforce.push.SalesforceRestClientFactory;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.ApiVersion;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.PushTopic;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectDescriptor;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectMetadata;
+import com.github.jcustenborder.kafka.connect.salesforce.push.model.SObjectsResponse;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -145,8 +146,7 @@ public class SalesforceSourceConnector extends SourceConnector {
 
   @Override
   public void stop() {
-
-
+    //TODO: for graceful stop and taking advantage of connector metadata topics.
   }
 
   @Override

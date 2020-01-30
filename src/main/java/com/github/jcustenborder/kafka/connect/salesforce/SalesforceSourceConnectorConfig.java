@@ -15,6 +15,7 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
+import com.github.jcustenborder.kafka.connect.salesforce.common.SObjectHelper;
 import com.github.jcustenborder.kafka.connect.utils.config.ValidPattern;
 import com.github.jcustenborder.kafka.connect.utils.template.StructTemplate;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -27,52 +28,30 @@ import java.util.Map;
 
 public class SalesforceSourceConnectorConfig extends AbstractConfig {
 
+  public static final String KAFKA_TOPIC_CONF = "kafka.topic";
+  public static final String CURL_LOGGING_CONF = "curl.logging";
+  public static final String VERSION_CONF = "salesforce.version";
   public static final String USERNAME_CONF = "salesforce.username";
   public static final String PASSWORD_CONF = "salesforce.password";
-  public static final String PASSWORD_TOKEN_CONF = "salesforce.password.token";
-  public static final String CONSUMER_KEY_CONF = "salesforce.consumer.key";
-  public static final String CONSUMER_SECRET_CONF = "salesforce.consumer.secret";
   public static final String INSTANCE_CONF = "salesforce.instance";
-  public static final String CURL_LOGGING_CONF = "curl.logging";
+  public static final String CONNECT_TYPE = "salesforce.connect.type";
+  public static final String SALESFORCE_OBJECT_CONF = "salesforce.object";
+  public static final String CONSUMER_KEY_CONF = "salesforce.consumer.key";
+  public static final String CONNECTION_TIMEOUT_CONF = "connection.timeout";
+  public static final String PASSWORD_TOKEN_CONF = "salesforce.password.token";
+  public static final String CONSUMER_SECRET_CONF = "salesforce.consumer.secret";
+  public static final String KAFKA_TOPIC_LOWERCASE_CONF = "kafka.topic.lowercase";
+  public static final String SALESFORCE_CDC_TOPIC_NAME_CONF = "salesforce.push.topic.name";
   public static final String SALESFORCE_PUSH_TOPIC_NAME_CONF = "salesforce.push.topic.name";
   public static final String SALESFORCE_PUSH_TOPIC_CREATE_CONF = "salesforce.push.topic.create";
   public static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF = "salesforce.push.topic.notify.create";
   public static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_CONF = "salesforce.push.topic.notify.update";
   public static final String SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_CONF = "salesforce.push.topic.notify.delete";
   public static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF = "salesforce.push.topic.notify.undelete";
-  public static final String VERSION_CONF = "salesforce.version";
-
-  public static final String SALESFORCE_OBJECT_CONF = "salesforce.object";
-  public static final String KAFKA_TOPIC_LOWERCASE_CONF = "kafka.topic.lowercase";
-  public static final String KAFKA_TOPIC_CONF = "kafka.topic";
-
-  public static final String CONNECTION_TIMEOUT_CONF = "connection.timeout";
-
-  static final String VERSION_DOC = "The version of the salesforce API to use.";
-  static final String USERNAME_DOC = "Salesforce username to connect with.";
-  static final String PASSWORD_DOC = "Salesforce password to connect with.";
-  static final String PASSWORD_TOKEN_DOC = "The Salesforce security token associated with the username.";
-  static final String CONSUMER_KEY_DOC = "The consumer key for the OAuth application.";
-  static final String CONSUMER_SECRET_DOC = "The consumer secret for the OAuth application.";
-  static final String INSTANCE_DOC = "The Salesforce instance to connect to.";
-  static final String CURL_LOGGING_DOC = "If enabled the logs will output the equivalent curl commands. This is a security risk because your authorization header will end up in the log file. Use at your own risk.";
-  static final String CONNECTION_TIMEOUT_DOC = "The amount of time to wait while connecting to the Salesforce streaming endpoint.";
-  static final String SALESFORCE_PUSH_TOPIC_NAME_DOC = "The Salesforce topic to subscribe to. If " + SALESFORCE_PUSH_TOPIC_CREATE_CONF +
-      " is set to true, a PushTopic with this name will be created.";
-  static final String SALESFORCE_PUSH_TOPIC_CREATE_DOC = "Flag to determine if the PushTopic should be created if it does not exist.";
-  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_DOC = "Flag to determine if the PushTopic should respond to creates.";
-  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_DOC = "Flag to determine if the PushTopic should respond to updates.";
-  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_DOC = "Flag to determine if the PushTopic should respond to deletes.";
-  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC = "Flag to determine if the PushTopic should respond to undeletes.";
-  static final String SALESFORCE_OBJECT_DOC = "The Salesforce object to create a topic for.";
-  static final String KAFKA_TOPIC_DOC = "The Kafka topic to write the SalesForce data to. This is a template driven by the " +
-      "data returned by Salesforce. Any field in the schema can be used but you should always pick a value that is guarenteed to be there. " +
-      "`" + SObjectHelper.FIELD_EVENT_TYPE + "` and `" + SObjectHelper.FIELD_OBJECT_TYPE + "` are two metadata fields that " +
-      "are included on every record. For example you could put update and deletes in a different topic by using `salesforce.${_ObjectType}.${_EventType}`";
-  static final String KAFKA_TOPIC_LOWERCASE_DOC = "Flag to determine if the kafka topic should be lowercased.";
 
   public SalesforceSourceConnectorConfig(Map<String, ?> parsedConfig) {
     super(conf(), parsedConfig);
+    this.connectType = ConnectType.valueOf(this.getString(CONNECT_TYPE));
     this.username = this.getString(USERNAME_CONF);
     this.password = this.getPassword(PASSWORD_CONF).value();
     this.passwordToken = this.getPassword(PASSWORD_TOKEN_CONF).value();
@@ -99,6 +78,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
 
   public static ConfigDef conf() {
     return new ConfigDef()
+        .define(CONNECT_TYPE, Type.STRING, Importance.HIGH, CONNECT_TYPE_DOC)
         .define(USERNAME_CONF, Type.STRING, Importance.HIGH, USERNAME_DOC)
         .define(PASSWORD_CONF, Type.PASSWORD, Importance.HIGH, PASSWORD_DOC)
         .define(PASSWORD_TOKEN_CONF, Type.PASSWORD, Importance.HIGH, PASSWORD_TOKEN_DOC)
@@ -119,24 +99,51 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
         .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC);
   }
 
-  public static final String TEMPLATE_NAME = "topicName";
+
+  public final String version;
   public final String username;
   public final String password;
-  public final String passwordToken;
-  public final String consumerKey;
-  public final String consumerSecret;
   public final String instance;
+  public final String consumerKey;
   public final boolean curlLogging;
-  public final StructTemplate kafkaTopicTemplate;
-  public final String salesForcePushTopicName;
-  public final boolean salesForcePushTopicCreate;
-  public final String salesForceObject;
   public final long connectTimeout;
+  public final String passwordToken;
+  public final String consumerSecret;
+  public final String salesForceObject;
+  public final ConnectType connectType;
+  public final boolean kafkaTopicLowerCase;
+  public final String salesForcePushTopicName;
+  public final StructTemplate kafkaTopicTemplate;
+  public final boolean salesForcePushTopicCreate;
   public final boolean salesForcePushTopicNotifyCreate;
   public final boolean salesForcePushTopicNotifyUpdate;
   public final boolean salesForcePushTopicNotifyDelete;
   public final boolean salesForcePushTopicNotifyUndelete;
-  public final String version;
-  public final boolean kafkaTopicLowerCase;
+
+  public static final String TEMPLATE_NAME = "topicName";
+
+  static final String USERNAME_DOC = "Salesforce username to connect with.";
+  static final String PASSWORD_DOC = "Salesforce password to connect with.";
+  static final String VERSION_DOC = "The version of the salesforce API to use.";
+  static final String CONNECT_TYPE_DOC = "Type of Salesforce method to get data";
+  static final String PASSWORD_TOKEN_DOC = "The Salesforce security token associated with the username.";
+  static final String CONSUMER_KEY_DOC = "The consumer key for the OAuth application.";
+  static final String CONSUMER_SECRET_DOC = "The consumer secret for the OAuth application.";
+  static final String INSTANCE_DOC = "The Salesforce instance to connect to.";
+  static final String CURL_LOGGING_DOC = "If enabled the logs will output the equivalent curl commands. This is a security risk because your authorization header will end up in the log file. Use at your own risk.";
+  static final String CONNECTION_TIMEOUT_DOC = "The amount of time to wait while connecting to the Salesforce streaming endpoint.";
+  static final String SALESFORCE_PUSH_TOPIC_NAME_DOC = "The Salesforce topic to subscribe to. If " + SALESFORCE_PUSH_TOPIC_CREATE_CONF +
+          " is set to true, a PushTopic with this name will be created.";
+  static final String SALESFORCE_PUSH_TOPIC_CREATE_DOC = "Flag to determine if the PushTopic should be created if it does not exist.";
+  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_DOC = "Flag to determine if the PushTopic should respond to creates.";
+  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_DOC = "Flag to determine if the PushTopic should respond to updates.";
+  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_DOC = "Flag to determine if the PushTopic should respond to deletes.";
+  static final String SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC = "Flag to determine if the PushTopic should respond to undeletes.";
+  static final String SALESFORCE_OBJECT_DOC = "The Salesforce object to create a topic for.";
+  static final String KAFKA_TOPIC_DOC = "The Kafka topic to write the SalesForce data to. This is a template driven by the " +
+          "data returned by Salesforce. Any field in the schema can be used but you should always pick a value that is guarenteed to be there. " +
+          "`" + SObjectHelper.FIELD_EVENT_TYPE + "` and `" + SObjectHelper.FIELD_OBJECT_TYPE + "` are two metadata fields that " +
+          "are included on every record. For example you could put update and deletes in a different topic by using `salesforce.${_ObjectType}.${_EventType}`";
+  static final String KAFKA_TOPIC_LOWERCASE_DOC = "Flag to determine if the kafka topic should be lowercased.";
 
 }
