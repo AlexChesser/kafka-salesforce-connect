@@ -19,7 +19,7 @@ The address type was incorrectly identified as a string. This has been corrected
 ```properties
 name=connector1
 tasks.max=1
-connector.class=com.github.jcustenborder.kafka.connect.salesforce.SalesforceSourceConnector
+connector.class=com.github.jcustenborder.kafka.connect.SalesforceSourceConnector
 
 # Set these required values
 salesforce.username=
