@@ -24,7 +24,7 @@ import com.google.api.client.util.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.utils.SystemTime;
 import org.apache.kafka.common.utils.Time;
-import org.apache.kafka.connect.data.Date;
+//import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -88,7 +88,8 @@ class SObjectHelper {
         builder = SchemaBuilder.bool();
         break;
       case "date":
-        builder = Date.builder();
+        //builder = Date.builder();
+        builder = SchemaBuilder.string();
         break;
       case "address":
         builder = SchemaBuilder.struct()
@@ -250,7 +251,17 @@ class SObjectHelper {
     valueStruct.put(FIELD_OBJECT_TYPE, this.config.salesForceObject);
     valueStruct.put(FIELD_EVENT_TYPE, eventType);
 
+    final long timestamp = getTimestamp(valueStruct);
 
+    String topic = this.config.kafkaTopicTemplate.execute(SalesforceSourceConnectorConfig.TEMPLATE_NAME, valueStruct);
+    if (this.config.kafkaTopicLowerCase) {
+      topic = topic.toLowerCase();
+    }
+    Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
+    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct, this.valueSchema, valueStruct, timestamp);
+  }
+
+  private long getTimestamp(Struct valueStruct) {
     final long timestamp;
     java.util.Date date = null;
     date = (java.util.Date) valueStruct.get(SObjectWellKnownFields.SYSTEMMODSTAMP);
@@ -259,13 +270,7 @@ class SObjectHelper {
     } else {
       timestamp = this.time.milliseconds();
     }
-
-    String topic = this.config.kafkaTopicTemplate.execute(SalesforceSourceConnectorConfig.TEMPLATE_NAME, valueStruct);
-    if (this.config.kafkaTopicLowerCase) {
-      topic = topic.toLowerCase();
-    }
-    Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
-    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct, this.valueSchema, valueStruct, timestamp);
+    return timestamp;
   }
 
 }
