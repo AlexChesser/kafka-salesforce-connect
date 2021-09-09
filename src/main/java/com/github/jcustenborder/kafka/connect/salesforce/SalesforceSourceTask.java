@@ -19,6 +19,7 @@ import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClie
 import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClientFactory;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.ApiVersion;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.AuthenticationResponse;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.PushTopic;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectsResponse;
@@ -133,8 +134,13 @@ public class SalesforceSourceTask extends SourceTask {
     //2013-05-06T00:00:00+00:00
     Preconditions.checkNotNull(this.descriptor, "Could not find descriptor for '%s'", this.config.salesForceObject);
 
+    PushTopic pushTopic = getPushTopic(this.salesforceRestClient);
+    List<String> pushTopicFields = pushTopic == null
+        ? new ArrayList<String>()
+        : pushTopic.getSelectedFieldNames();
+
     this.keySchema = SObjectHelper.keySchema(this.descriptor);
-    this.valueSchema = SObjectHelper.valueSchema(this.descriptor);
+    this.valueSchema = SObjectHelper.valueSchema(this.descriptor, pushTopicFields);
     this.topicChannelListener = new TopicChannelMessageListener(
         this.messageQueue, this.config, this.keySchema, this.valueSchema
     );
@@ -181,6 +187,7 @@ public class SalesforceSourceTask extends SourceTask {
           log.info("PushTopic {} - found stored offset {}", config.salesForcePushTopicName, sourceOffset);
           replay.put(channel, sourceOffset);
         } else {
+          log.info("Replay id not set. So it is being set to -1 (for all new notifications).");
           replay.put(channel, -1L);
         }
       }
@@ -204,6 +211,19 @@ public class SalesforceSourceTask extends SourceTask {
     if (!this.streamingClient.waitFor(30000, BayeuxClient.State.CONNECTED)) {
       throw new ConnectException("Not connected after 30,000 ms.");
     }
+  }
+
+  private PushTopic getPushTopic(SalesforceRestClient client) {
+    List<PushTopic> pushTopics = client.pushTopics();
+    PushTopic pushTopic = null;
+
+    for (PushTopic p : pushTopics) {
+      if (this.config.salesForcePushTopicName.equals(p.name())) {
+        pushTopic = p;
+        break;
+      }
+    }
+    return pushTopic;
   }
 
   @Override

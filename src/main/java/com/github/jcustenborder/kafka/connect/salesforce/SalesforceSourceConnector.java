@@ -77,6 +77,23 @@ public class SalesforceSourceConnector extends SourceConnector {
     Preconditions.checkNotNull(sObjectMetadata, "Could not find metadata for object '%s'", this.config.salesForceObject);
     Preconditions.checkNotNull(sObjectDescriptor, "Could not find descriptor for object '%s'", this.config.salesForceObject);
 
+    PushTopic pushTopic = getPushTopic(client);
+    if (null == pushTopic && this.config.salesForcePushTopicCreate) {
+      if (log.isWarnEnabled()) {
+        log.warn("PushTopic {} was not found.", this.config.salesForcePushTopicName);
+      }
+      pushTopic = createPushTopic(client, apiVersion, sObjectDescriptor);
+    }
+
+    Preconditions.checkNotNull(pushTopic, "PushTopic '%s' was not found.", this.config.salesForcePushTopicName);
+
+    Map<String, String> taskSettings = new HashMap<>();
+    taskSettings.putAll(map);
+    taskSettings.put(SalesforceSourceConnectorConfig.VERSION_CONF, apiVersion.version());
+    this.configs.add(taskSettings);
+  }
+
+  private PushTopic getPushTopic(SalesforceRestClient client) {
     List<PushTopic> pushTopics = client.pushTopics();
     PushTopic pushTopic = null;
 
@@ -86,51 +103,43 @@ public class SalesforceSourceConnector extends SourceConnector {
         break;
       }
     }
+    return pushTopic;
+  }
 
-    if (null == pushTopic && this.config.salesForcePushTopicCreate) {
-      if (log.isWarnEnabled()) {
-        log.warn("PushTopic {} was not found.", this.config.salesForcePushTopicName);
+  private PushTopic createPushTopic(SalesforceRestClient client, ApiVersion apiVersion, SObjectDescriptor sObjectDescriptor) {
+    PushTopic pushTopic;
+    pushTopic = new PushTopic();
+    pushTopic.name(this.config.salesForcePushTopicName);
+
+    Set<String> fields = new LinkedHashSet<>();
+    for (SObjectDescriptor.Field f : sObjectDescriptor.fields()) {
+      if (SObjectHelper.isTextArea(f)) {
+        continue;
       }
-
-      pushTopic = new PushTopic();
-      pushTopic.name(this.config.salesForcePushTopicName);
-
-      Set<String> fields = new LinkedHashSet<>();
-      for (SObjectDescriptor.Field f : sObjectDescriptor.fields()) {
-        if (SObjectHelper.isTextArea(f)) {
-          continue;
-        }
-        fields.add(f.name());
-      }
-
-      String query = String.format(
-          "SELECT %s FROM %s",
-          Joiner.on(',').join(fields),
-          sObjectDescriptor.name()
-      );
-      pushTopic.query(query);
-      if (log.isInfoEnabled()) {
-        log.info("Setting query for {} to \n{}", pushTopic.name(), pushTopic.query());
-      }
-      pushTopic.notifyForOperationCreate(this.config.salesForcePushTopicNotifyCreate);
-      pushTopic.notifyForOperationUpdate(this.config.salesForcePushTopicNotifyUpdate);
-      pushTopic.notifyForOperationDelete(this.config.salesForcePushTopicNotifyDelete);
-      pushTopic.notifyForOperationUndelete(this.config.salesForcePushTopicNotifyUndelete);
-      pushTopic.apiVersion(new BigDecimal(apiVersion.version()));
-
-      if (log.isInfoEnabled()) {
-        log.info("Creating PushTopic {}", pushTopic.name());
-      }
-
-      client.pushTopic(pushTopic);
+      fields.add(f.name());
     }
 
-    Preconditions.checkNotNull(pushTopic, "PushTopic '%s' was not found.", this.config.salesForcePushTopicName);
+    String query = String.format(
+        "SELECT %s FROM %s",
+        Joiner.on(',').join(fields),
+        sObjectDescriptor.name()
+    );
+    pushTopic.query(query);
+    if (log.isInfoEnabled()) {
+      log.info("Setting query for {} to \n{}", pushTopic.name(), pushTopic.query());
+    }
+    pushTopic.notifyForOperationCreate(this.config.salesForcePushTopicNotifyCreate);
+    pushTopic.notifyForOperationUpdate(this.config.salesForcePushTopicNotifyUpdate);
+    pushTopic.notifyForOperationDelete(this.config.salesForcePushTopicNotifyDelete);
+    pushTopic.notifyForOperationUndelete(this.config.salesForcePushTopicNotifyUndelete);
+    pushTopic.apiVersion(new BigDecimal(apiVersion.version()));
 
-    Map<String, String> taskSettings = new HashMap<>();
-    taskSettings.putAll(map);
-    taskSettings.put(SalesforceSourceConnectorConfig.VERSION_CONF, apiVersion.version());
-    this.configs.add(taskSettings);
+    if (log.isInfoEnabled()) {
+      log.info("Creating PushTopic {}", pushTopic.name());
+    }
+
+    client.pushTopic(pushTopic);
+    return pushTopic;
   }
 
   @Override

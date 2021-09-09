@@ -18,7 +18,11 @@ package com.github.jcustenborder.kafka.connect.salesforce.rest.model;
 import com.google.api.client.util.Key;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PushTopic {
   @Key("attributes")
@@ -102,5 +106,20 @@ public class PushTopic {
 
   public void notifyForFields(String notifyForFields) {
     this.notifyForFields = notifyForFields;
+  }
+
+  public List<String> getSelectedFieldNames() {
+    List<String> fieldNames = new ArrayList<String>();
+    Matcher matcher = Pattern.compile("SELECT (.* )+FROM").matcher(this.query());
+    if (matcher.find()) {
+      String fieldsClause = matcher.group(1);
+
+      Matcher innerMatcher = Pattern.compile("([A-Za-z0-9_]+),*").matcher(fieldsClause);
+      while (innerMatcher.find()) {
+        String oneField = innerMatcher.group(1);
+        fieldNames.add(oneField);
+      }
+    }
+    return fieldNames;
   }
 }
