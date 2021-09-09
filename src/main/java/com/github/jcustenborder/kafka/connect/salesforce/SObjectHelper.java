@@ -17,6 +17,7 @@ package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectWellKnownFields;
 import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.DateTypeParser;
 import com.google.api.client.util.Preconditions;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -161,7 +163,7 @@ class SObjectHelper {
     return builder.build();
   }
 
-  public static Schema valueSchema(SObjectDescriptor descriptor) {
+  public static Schema valueSchema(SObjectDescriptor descriptor, List<String> fieldNames) {
     String name = String.format("%s.%s", SObjectHelper.class.getPackage().getName(), descriptor.name());
     SchemaBuilder builder = SchemaBuilder.struct();
     builder.name(name);
@@ -170,8 +172,13 @@ class SObjectHelper {
       if (isTextArea(field)) {
         continue;
       }
-      Schema schema = schema(field);
-      builder.field(field.name(), schema);
+      if (fieldNames == null || fieldNames.size() == 0
+              || fieldNames.contains(field.name())
+              || field.name().equals(SObjectWellKnownFields.SYSTEMMODSTAMP)
+      ) {
+        Schema schema = schema(field);
+        builder.field(field.name(), schema);
+      }
     }
 
     builder.field(FIELD_OBJECT_TYPE, Schema.OPTIONAL_STRING_SCHEMA);
@@ -245,7 +252,8 @@ class SObjectHelper {
 
 
     final long timestamp;
-    java.util.Date date = (java.util.Date) valueStruct.get("SystemModstamp");
+    java.util.Date date = null;
+    date = (java.util.Date) valueStruct.get(SObjectWellKnownFields.SYSTEMMODSTAMP);
     if (null != date) {
       timestamp = date.getTime();
     } else {
