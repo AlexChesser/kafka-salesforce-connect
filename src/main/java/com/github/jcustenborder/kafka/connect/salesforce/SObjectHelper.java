@@ -17,13 +17,14 @@ package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectWellKnownFields;
 import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.DateTypeParser;
 import com.google.api.client.util.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.utils.SystemTime;
 import org.apache.kafka.common.utils.Time;
-import org.apache.kafka.connect.data.Date;
+//import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -86,7 +88,8 @@ class SObjectHelper {
         builder = SchemaBuilder.bool();
         break;
       case "date":
-        builder = Date.builder();
+        //builder = Date.builder();
+        builder = SchemaBuilder.string();
         break;
       case "address":
         builder = SchemaBuilder.struct()
@@ -161,7 +164,7 @@ class SObjectHelper {
     return builder.build();
   }
 
-  public static Schema valueSchema(SObjectDescriptor descriptor) {
+  public static Schema valueSchema(SObjectDescriptor descriptor, List<String> fieldNames) {
     String name = String.format("%s.%s", SObjectHelper.class.getPackage().getName(), descriptor.name());
     SchemaBuilder builder = SchemaBuilder.struct();
     builder.name(name);
@@ -170,8 +173,13 @@ class SObjectHelper {
       if (isTextArea(field)) {
         continue;
       }
-      Schema schema = schema(field);
-      builder.field(field.name(), schema);
+      if (fieldNames == null || fieldNames.size() == 0
+              || fieldNames.contains(field.name())
+              || field.name().equals(SObjectWellKnownFields.SYSTEMMODSTAMP)
+      ) {
+        Schema schema = schema(field);
+        builder.field(field.name(), schema);
+      }
     }
 
     builder.field(FIELD_OBJECT_TYPE, Schema.OPTIONAL_STRING_SCHEMA);
@@ -243,14 +251,7 @@ class SObjectHelper {
     valueStruct.put(FIELD_OBJECT_TYPE, this.config.salesForceObject);
     valueStruct.put(FIELD_EVENT_TYPE, eventType);
 
-
-    final long timestamp;
-    java.util.Date date = (java.util.Date) valueStruct.get("SystemModstamp");
-    if (null != date) {
-      timestamp = date.getTime();
-    } else {
-      timestamp = this.time.milliseconds();
-    }
+    final long timestamp = getTimestamp(valueStruct);
 
     String topic = this.config.kafkaTopicTemplate.execute(SalesforceSourceConnectorConfig.TEMPLATE_NAME, valueStruct);
     if (this.config.kafkaTopicLowerCase) {
@@ -258,6 +259,18 @@ class SObjectHelper {
     }
     Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
     return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct, this.valueSchema, valueStruct, timestamp);
+  }
+
+  private long getTimestamp(Struct valueStruct) {
+    final long timestamp;
+    java.util.Date date = null;
+    date = (java.util.Date) valueStruct.get(SObjectWellKnownFields.SYSTEMMODSTAMP);
+    if (null != date) {
+      timestamp = date.getTime();
+    } else {
+      timestamp = this.time.milliseconds();
+    }
+    return timestamp;
   }
 
 }
