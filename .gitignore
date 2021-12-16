@@ -4,3 +4,4 @@ target
 .settings
 /kafka-connect-salesforce.iml
 /.idea/
+confluentinc*
